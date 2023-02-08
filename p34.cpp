@@ -37,7 +37,6 @@ public:
   }
 
   virtual bool runOnFunction(Function &F) override {
-    // errs() << "Function " << F.getName() << "\n";
     std::set<Value *> definedVariables;
     for (auto &BB : F) {
       for (auto &I : BB) {
@@ -57,6 +56,7 @@ public:
         }
       }
     }
+
     return false;
   }
 };
