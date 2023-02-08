@@ -87,9 +87,6 @@ public:
               SI = new StoreInst(init_double, ptrOperand, LI);
             }
 
-            // NOTE: Can there be a problem with inserting an instruction while
-            // looping over them?
-            SI->insertBefore(LI);
             definedVariables.insert(ptrOperand);
           }
         } else if (auto *SI = dyn_cast<StoreInst>(&I)) {
