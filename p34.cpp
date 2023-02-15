@@ -37,22 +37,60 @@ public:
   }
 
   virtual bool runOnFunction(Function &F) override {
-    std::set<Value *> definedVariables;
+    // std::set<Value *> definedVariables;
+    // for (auto &BB : F) {
+    //   for (auto &I : BB) {
+    //     if (auto *LI = dyn_cast<LoadInst>(&I)) {
+    //       // If the instruction is a load instruction
+    //       Value *ptrOperand = LI->getPointerOperand();
+    //       // Check if the loaded variable has been defined yet
+    //       if (definedVariables.count(ptrOperand) == 0) {
+    //         // If not, print a message indicating a possible
+    //         // use-before-initialization
+    //         errs() << ptrOperand->getName() << "\n";
+    //       }
+    //     } else if (auto *SI = dyn_cast<StoreInst>(&I)) {
+    //       // If the instruction is a store instruction, add the stored
+    //       variable
+    //       // to the set of defined variables
+    //       definedVariables.insert(SI->getPointerOperand());
+    //     }
+    //   }
+    // }
+
+    std::map<Value *, std::set<Instruction *>> defUseMap;
+    std::set<Value *> initializedSet;
+
     for (auto &BB : F) {
       for (auto &I : BB) {
-        if (auto *LI = dyn_cast<LoadInst>(&I)) {
-          // If the instruction is a load instruction
-          Value *ptrOperand = LI->getPointerOperand();
-          // Check if the loaded variable has been defined yet
-          if (definedVariables.count(ptrOperand) == 0) {
-            // If not, print a message indicating a possible
-            // use-before-initialization
+        if (auto *storeInst = dyn_cast<StoreInst>(&I)) {
+          initializedSet.insert(storeInst->getPointerOperand());
+          defUseMap[storeInst->getPointerOperand()].insert(storeInst);
+        } else if (auto *loadInst = dyn_cast<LoadInst>(&I)) {
+          Value *ptrOperand = loadInst->getPointerOperand();
+          if (initializedSet.find(ptrOperand) == initializedSet.end()) {
             errs() << ptrOperand->getName() << "\n";
           }
-        } else if (auto *SI = dyn_cast<StoreInst>(&I)) {
-          // If the instruction is a store instruction, add the stored variable
-          // to the set of defined variables
-          definedVariables.insert(SI->getPointerOperand());
+        } else if (auto *brInst = dyn_cast<BranchInst>(&I)) {
+          if (brInst->isConditional()) {
+            Value *cond = brInst->getCondition();
+            if (auto *loadInst = dyn_cast<LoadInst>(cond)) {
+              Value *ptrOperand = loadInst->getPointerOperand();
+              if (initializedSet.find(ptrOperand) == initializedSet.end()) {
+                errs() << ptrOperand->getName() << "\n";
+              }
+            }
+
+            // FIXME Iterate over instructions within conditional block
+          }
+        } else if (auto *switchInst = dyn_cast<SwitchInst>(&I)) {
+          Value *cond = switchInst->getCondition();
+          if (auto *loadInst = dyn_cast<LoadInst>(cond)) {
+            Value *ptrOperand = loadInst->getPointerOperand();
+            if (initializedSet.find(ptrOperand) == initializedSet.end()) {
+              errs() << ptrOperand->getName() << "\n";
+            }
+          }
         }
       }
     }
